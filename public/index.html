@@ -39,8 +39,8 @@
     try {
       document.querySelector('#sqlQuery').innerText = 'Generating Mongo Query...';
 
-      // ✅ Step 1: Generate Mongo Query from Backend
-      const generateResponse = await fetch('http://localhost:3000/mongoPrompt', {
+      
+      const generateResponse = await fetch('https://mongollm.onrender.com/mongoPrompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: promptText })
@@ -54,15 +54,14 @@
         return;
       }
 
-      // ✅ Step 2: Clean Query (Remove Unnecessary Parts)
       const mongo = generateData.result.replace(/```javascript\s*|\s*```/g, '').trim();
       document.querySelector('#sqlQuery').innerText = mongo;
 
       document.getElementById('result').innerText = 'Executing Mongo query...';
 
       
-      console.log("Mongo Query to Execute:", mongo); // Log the query before execution
-      const executeResponse = await fetch('http://localhost:3000/execMongo', {
+      console.log("Mongo Query to Execute:", mongo); 
+      const executeResponse = await fetch('https://mongollm.onrender.com/execMongo', {
 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
