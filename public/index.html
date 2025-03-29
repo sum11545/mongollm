@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MongLLM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white shadow-lg rounded-lg p-6 max-w-2xl w-full">
+    <h1 class="text-2xl font-bold text-center text-blue-600">Welcome To MongLLM</h1>
+    
+    <div class="mt-4">
+      <label for="prompt" class="block text-gray-700 font-semibold">Enter your prompt:</label>
+      <textarea id="prompt" class="w-full p-2 mt-1 border rounded focus:ring-2 focus:ring-blue-500" placeholder="Describe what you want to query..."></textarea>
+    </div>
+
+    <button onclick="handleSubmit()" class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition">Submit</button>
+
+    <div class="mt-6">
+      <h2 class="text-xl font-semibold text-gray-800">Generated MONGO Query</h2>
+      <pre id="sqlQuery" class="bg-gray-200 p-2 rounded mt-1">Your mongo query will appear here...</pre>
+    </div>
+
+    <div class="mt-6">
+      <h2 class="text-xl font-semibold text-gray-800">Query Result</h2>
+      <pre id="result" class="bg-gray-200 p-2 rounded mt-1">Your query result will appear here...</pre>
+    </div>
+  </div>
+
+  <script>
+  async function handleSubmit() {
+    const promptText = document.querySelector('#prompt').value.trim();
+    if (!promptText) {
+      alert('Please enter a prompt.');
+      return;
+    }
+
+    try {
+      document.querySelector('#sqlQuery').innerText = 'Generating Mongo Query...';
+
+      // ✅ Step 1: Generate Mongo Query from Backend
+      const generateResponse = await fetch('http://localhost:3000/mongoPrompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: promptText })
+      });
+
+      const generateData = await generateResponse.json();
+      console.log("Generated Query:", generateData);
+
+      if (!generateData.result) {
+        document.querySelector('#sqlQuery').innerText = "Error: No query generated.";
+        return;
+      }
+
+      // ✅ Step 2: Clean Query (Remove Unnecessary Parts)
+      const mongo = generateData.result.replace(/```javascript\s*|\s*```/g, '').trim();
+      document.querySelector('#sqlQuery').innerText = mongo;
+
+      document.getElementById('result').innerText = 'Executing Mongo query...';
+
+      
+      console.log("Mongo Query to Execute:", mongo); // Log the query before execution
+      const executeResponse = await fetch('http://localhost:3000/execMongo', {
+
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: mongo })  
+      });
+
+      const executeData = await executeResponse.json();
+      console.log("Query Execution Result:", executeData);
+
+      if (!executeData.success) {
+        document.getElementById('result').innerText = "Error: " + executeData.message;
+        return;
+      }
+
+      document.getElementById('result').innerText = JSON.stringify(executeData.data, null, 2);
+
+    } catch (error) {
+      console.error('Error fetching or executing query:', error);
+      document.getElementById('result').innerText = "An error occurred. Check console for details.";
+    }
+  }
+  </script>
+</body>
+</html>
