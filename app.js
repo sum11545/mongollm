@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 require("dotenv").config();
 // const mongoose = require("mongoose");
-const { MongoClient } = require("mongodb");
+const { MongoClient, FindCursor } = require("mongodb");
 const cors = require("cors");
 const path = require("path");
 const port = process.env.PORT || 3000;
@@ -23,7 +23,7 @@ app.get("/", (req, res) => {
 //   .catch((err) => console.error(" Connection Error:", err));
 
 const uri = process.env.MONGO_URI;
-const client = new MongoClient(uri);
+const client = new MongoClient(uri, { monitorCommands: false });
 let db;
 
 async function connectDB() {
@@ -116,10 +116,11 @@ app.post("/execMongo", async (req, res) => {
 
     mongo = mongo.replace(/db\.collection/g, `db.collection("LLM")`);
     let result = await eval(`(async ()=> {return ${mongo};})()`);
-    console.log(result);
-    if (result instanceof require("mongodb").FindCursor) {
+    // console.log(result);
+    if (result instanceof FindCursor) {
       result = await result.toArray();
     }
+    console.log(result.constructor.name);
 
     console.log("Result to send:", JSON.stringify(result)); // Log the result before sending
     res.json({ success: true, data: result ? result : {} });
