@@ -18,71 +18,121 @@
     <button onclick="handleSubmit()" class="mt-4 w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 transition">Submit</button>
 
     <div class="mt-6">
-      <h2 class="text-xl font-semibold text-gray-800">Generated MONGO Query</h2>
-      <pre id="sqlQuery" class="bg-gray-200 p-2 rounded mt-1">Your mongo query will appear here...</pre>
+      <h2 class="text-xl font-semibold text-gray-800">Generated Mongo Query</h2>
+      <pre id="mongoQuery" class="bg-gray-200 p-2 rounded mt-1"><code>Your mongo query will appear here...</code></pre>
     </div>
 
     <div class="mt-6">
       <h2 class="text-xl font-semibold text-gray-800">Query Result</h2>
-      <pre id="result" class="bg-gray-200 p-2 rounded mt-1">Your query result will appear here...</pre>
+      <pre id="result" class="bg-gray-200 p-2 rounded mt-1 overflow-x-auto max-h-60"><code>Your query result will appear here...</code></pre>
     </div>
   </div>
 
   <script>
   async function handleSubmit() {
-    const promptText = document.querySelector('#prompt').value.trim();
-    if (!promptText) {
-      alert('Please enter a prompt.');
-      return;
-    }
+  const promptText = document.querySelector('#prompt').value.trim();
+  if (!promptText) {
+    alert('Please enter a prompt.');
+    return;
+  }
 
-    try {
-      document.querySelector('#sqlQuery').innerText = 'Generating Mongo Query...';
+document.querySelector('#mongoQuery').textContent = 'Generating Mongo Query...';
 
-      
-      const generateResponse = await fetch('https://mongollm.onrender.com/mongoPrompt', {
+try {
+  if(promptText.startsWith('db.')){
+    console.log('Db query detected',promptText);
+    
+    document.querySelector('#mongoQuery').textContent = promptText;
+  
+    const directResponse = await fetch('https://mongollm.onrender.com/mongoPrompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: promptText })
-      });
+    });
 
-      const generateData = await generateResponse.json();
-      console.log("Generated Query:", generateData);
+    const data = await directResponse.json();
+    console.log(typeof data);
+    console.log(data);
+    
+    
+    
+    console.log("Response from /mongoPrompt:", data);
+    const string = JSON.stringify(data, null, 2);
 
-      if (!generateData.result) {
-        document.querySelector('#sqlQuery').innerText = "Error: No query generated.";
-        return;
-      }
+    console.log(string);
+    
+    document.querySelector('#result').textContent = string;
+    document.getElementById("prompt").value = "";
 
-      const mongo = generateData.result.replace(/```javascript\s*|\s*```/g, '').trim();
-      document.querySelector('#sqlQuery').innerText = mongo;
-
-      document.getElementById('result').innerText = 'Executing Mongo query...';
-
-      
-      console.log("Mongo Query to Execute:", mongo); 
-      const executeResponse = await fetch('https://mongollm.onrender.com/execMongo', {
-
+  }
+else{
+  const generateResponse = await fetch('https://mongollm.onrender.com/mongoPrompt', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: mongo })  
-      });
+        body: JSON.stringify({ prompt: promptText })
+    });
 
-      const executeData = await executeResponse.json();
-      console.log("Query Execution Result:", executeData);
+    const generateData = await generateResponse.json();
+    
+    console.log("Response from /mongoPrompt:", generateData);
+    document.querySelector('#result').textContent = generateData.result;
 
-      if (!executeData.success) {
-        document.getElementById('result').innerText = "Error: " + executeData.message;
+    if (!generateData.result) {
+        document.querySelector('#mongoQuery').textContent = "Error: No query generated.";
         return;
-      }
-
-      document.getElementById('result').innerText = JSON.stringify(executeData.data, null, 2);
-
-    } catch (error) {
-      console.error('Error fetching or executing query:', error);
-      document.getElementById('result').innerText = "An error occurred. Check console for details.";
     }
+
+    const mongo = generateData.result?.replace(/```javascript\s*|\s*```/g, '').trim() || "";
+    document.querySelector('#mongoQuery').textContent = `Your Mongo Query: \n${mongo}`;
+
+    document.getElementById('result').textContent = 'Executing Mongo query...';
+   
+
+    console.log("Sending to /execMongo:", { query: mongo });
+
+    const executeResponse = await fetch('https://mongollm.onrender.com//execMongo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: mongo })
+    });
+
+    const executeData = await executeResponse.json();
+    console.log("Response from /execMongo:", executeData);
+
+    const results = document.getElementById('result');
+
+    if (!executeData.success) {
+        results.textContent = `Error: ${executeData.message}`;
+        return;
+    }
+    if (executeData.message && executeData.message.includes("created successfully")) {
+    results.innerHTML = `<code>${executeData.message}</code>`;
+    return; // ✅ Prevent further execution (no need to check collections)
+}
+
+
+    if (executeData.collections) {
+        if (executeData.collections.length === 0) {
+            results.innerHTML = "<code>No collections found.</code>";
+        } else {
+            results.innerHTML = `<pre>${JSON.stringify(executeData.collections, null, 2)}</pre>`;
+        }
+    } else if (executeData.data) {
+        results.innerHTML = `<pre>${JSON.stringify(executeData.data, null, 2)}</pre>`;
+    } else {
+        results.innerHTML = "<code>No data found.</code>";
+    }
+
+    document.getElementById("prompt").value = "";
+
   }
+} catch (error) {
+    console.error('❌ Error fetching or executing query:', error);
+    document.getElementById('result').textContent = "An error occurred. Check console for details.";
+}
+
+ }
   </script>
 </body>
 </html>
+
