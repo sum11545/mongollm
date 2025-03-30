@@ -24,10 +24,7 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "./public", "index.html"));
 });
 
-cron.schedule("*/5 * * * *", () => {
-  console.log("🔄 Restarting server...");
-  process.exit(1); // Exits the process, a process manager should restart it
-});
+
 
 //Mongoose
 
